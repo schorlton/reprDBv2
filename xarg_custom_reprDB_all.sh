@@ -2,20 +2,6 @@
 
 #conda activate bioawk
 
-#wget -O - ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/protozoa/assembly_summary.txt | tail -n +3 > assembly_summary.txt
-#wget -O - ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/fungi/assembly_summary.txt | tail -n +3 >> assembly_summary.txt
-#wget -O - ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/viral/assembly_summary.txt | tail -n +3 >> assembly_summary.txt
-#wget -O - ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/archaea/assembly_summary.txt | tail -n +3 >> assembly_summary.txt
-#wget -O - ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/bacteria/assembly_summary.txt | tail -n +3 >> assembly_summary.txt
-
-
-
-#mkdir other
-#download other stuff
-#wget -O - ftp://ftp.ncbi.nlm.nih.gov/genomes/refseq/plasmid/plasmid.*.genomic.fna.gz >> Plasmids.fna.gz
-#wget -O Univec_Core.fa ftp://ftp.ncbi.nlm.nih.gov/pub/UniVec/UniVec_Core
-#wget ftp://hgdownload.soe.ucsc.edu/goldenPath/hg38/bigZips/latest/hg38.fa.gz
-
 
 download_link () {
 
@@ -59,19 +45,6 @@ download_link largest.txt
 
 }
 
-download_representative () {
-awk -F '\t' '($5=="representative genome"){print $0}' $1 > representative.txt
-rep_count=$(wc -l representative.txt | cut -f1 -d' ')
-
-if (( rep_count ==1 )); then
-        download_link representative.txt
-elif ((rep_count > 1 )); then
-	download_largest representative.txt
-else
-	download_reference $1
-fi
-}
-
 download_reference () {
 awk -F '\t' '($5=="reference genome"){print $0}' $1 > reference.txt
 
@@ -81,6 +54,19 @@ if (( ref_count == 1 )); then
         download_link reference.txt
 elif ((ref_count > 1 )); then
 	download_complete reference.txt
+else
+	download_representative $1
+fi
+}
+
+download_representative () {
+awk -F '\t' '($5=="representative genome"){print $0}' $1 > representative.txt
+rep_count=$(wc -l representative.txt | cut -f1 -d' ')
+
+if (( rep_count ==1 )); then
+        download_link representative.txt
+elif ((rep_count > 1 )); then
+	download_largest representative.txt
 else
 	download_complete $1
 fi
@@ -136,7 +122,7 @@ elif (( contig_count > 1 )); then
 	download_largest contig.txt
 else
 	echo "tax ID without fasta!"
-	cat $1 >> ../errors.txt
+	cat $1 >> ../../errors.txt
 	exit 1
 fi
 }
@@ -148,10 +134,10 @@ fi
 
 
 p=$1
-
+cd genomes
 	mkdir "$p"
 	cd $p
-	awk -F '\t' -v taxid=$p '($7==taxid){print $0}' ../assembly_summary.txt > genomes.txt 
+	awk -F '\t' -v taxid=$p '($7==taxid){print $0}' ../../assembly_summary.txt > genomes.txt 
 	genome_count=$(wc -l genomes.txt | cut -f1 -d' ')
 	
 	if (( genome_count == 1 )); then
@@ -161,13 +147,14 @@ p=$1
 #If there's more than one genome for the tax ID, need to pick one. First pick representative, if none available, then reference, then largest most complete (ie Complete > Scaffold > Contig) and second sort by size within each
 
 	else
-		download_representative genomes.txt
+		download_reference genomes.txt
 
 	fi
-species_name=$(awk -v taxid=$p -F'\t' '($7==taxid){print $8}' ../assembly_summary.txt | head -n1 | sed 's/ /_/g')
-bioawk -c fastx '{ if(length($seq) > 999) { print ">"$name; print $seq }}' *.fna.gz | bioawk -v taxid=$p -v species=$species_name -c fastx 'BEGIN{s=sprintf("%100s","");gsub(/ /,"N",s);print ">" taxid "_" species} (NR==1){printf $seq} (NR>1){printf s $seq}' | gzip > '../genomes/'$p'.fna.gz'
-cd ..
-rm -rf $p
+#species_name=$(awk -v taxid=$p -F'\t' '($7==taxid){print $8}' ../assembly_summary.txt | head -n1 | sed 's/ /_/g')
+#bioawk -c fastx '{ if(length($seq) > 999) { print ">"$name; print $seq }}' *.fna.gz | bioawk -v taxid=$p -v species=$species_name -c fastx 'BEGIN{s=sprintf("%100s","");gsub(/ /,"N",s);print ">" taxid "_" species} (NR==1){printf $seq} (NR>1){printf s $seq}' | gzip > '../genomes/'$p'.fna.gz'
+
+cd ../..
+#rm -rf $p
 
 
 
